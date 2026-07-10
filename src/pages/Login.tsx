@@ -48,6 +48,15 @@ export const Login: React.FC = () => {
   // Feedback states
   const [authError, setAuthError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isInIframe, setIsInIframe] = useState(false);
+
+  useEffect(() => {
+    try {
+      setIsInIframe(window.self !== window.top);
+    } catch (e) {
+      setIsInIframe(true);
+    }
+  }, []);
 
   const currentThemeId = profile?.theme || 'warm-cozy';
   const theme = THEMES.find(t => t.id === currentThemeId) || THEMES[0];
@@ -97,7 +106,14 @@ export const Login: React.FC = () => {
       navigate('/');
     } catch (error: any) {
       console.error("Google Auth error:", error);
-      if (error.code !== 'auth/popup-closed-by-user') {
+      if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+        const inIframe = window.self !== window.top;
+        if (inIframe) {
+          setAuthError("Google sign-in popup was closed or blocked. Because the app is running in a preview iframe, please click 'Open in New Tab' below to log in securely.");
+        } else {
+          setAuthError("Sign-in popup was closed before completion. Please try again.");
+        }
+      } else {
         setAuthError("Failed to authenticate with Google. Please try again.");
       }
     } finally {
@@ -627,6 +643,29 @@ export const Login: React.FC = () => {
                 </svg>
                 <span>Google Instant Account</span>
               </button>
+
+              {/* Iframe Preview Warning */}
+              {isInIframe && (
+                <div className="mt-4 p-4 rounded-2xl bg-amber-500/10 dark:bg-amber-500/5 border border-amber-500/20 text-stone-700 dark:text-stone-350 text-[11px] font-semibold space-y-2.5">
+                  <div className="flex items-start space-x-2">
+                    <AlertCircle className="w-4.5 h-4.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                    <p className="leading-relaxed">
+                      Google sign-in popups are often blocked or fail inside nested preview iframes. For a seamless sign-in, please open StudyNest in a new tab.
+                    </p>
+                  </div>
+                  <div className="pt-1 flex">
+                    <a
+                      href={window.location.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full inline-flex items-center justify-center px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black transition-all shadow-sm space-x-1 animate-pulse"
+                    >
+                      <span>Open in New Tab</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
+                </div>
+              )}
 
             </motion.div>
           </div>
