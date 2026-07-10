@@ -11,7 +11,9 @@ import {
   User
 } from 'firebase/auth';
 import { 
-  getFirestore, 
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
   doc, 
   getDoc, 
   setDoc, 
@@ -32,16 +34,69 @@ import firebaseConfig from '../firebase-applet-config.json';
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+
+// Use persistent local cache for robust offline-first functionality as per guidelines
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager()
+  })
+}, firebaseConfig.firestoreDatabaseId);
+
+// Core Firestore Error Handler as required by Firebase skill guidelines
+export enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+export interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  }
+}
+
+export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): never {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData?.map(provider => ({
+        providerId: provider.providerId,
+        email: provider.email,
+      })) || []
+    },
+    operationType,
+    path
+  };
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
 
 // Test Connection on Startup as required by Firebase skill guidelines
 async function testConnection() {
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
+    console.log("Firebase client connected to online services successfully.");
   } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.warn("Firebase client appears to be offline. Local persistence will handle states.");
-    }
+    console.warn("Firebase client is operating in offline/cached mode. Local persistent cache is active.", error);
   }
 }
 testConnection();
@@ -62,38 +117,46 @@ const DEFAULT_PREFERENCES = {
 // Create or retrieve user profile
 export async function getOrCreateUserProfile(user: User): Promise<UserProfile> {
   const userDocRef = doc(db, 'users', user.uid);
-  const userSnapshot = await getDoc(userDocRef);
+  try {
+    const userSnapshot = await getDoc(userDocRef);
 
-  if (userSnapshot.exists()) {
-    return userSnapshot.data() as UserProfile;
+    if (userSnapshot.exists()) {
+      return userSnapshot.data() as UserProfile;
+    }
+
+    // Create new profile
+    const newProfile: UserProfile = {
+      userId: user.uid,
+      displayName: user.displayName || user.email?.split('@')[0] || 'Cozy Scholar',
+      email: user.email || '',
+      country: 'United States', // Default country
+      createdAt: new Date().toISOString(),
+      isPremium: false, // Free tier by default
+      xp: 0,
+      level: 1,
+      currentStreak: 0,
+      longestStreak: 0,
+      lastStudyDate: '',
+      totalMinutesStudied: 0,
+      badges: [],
+      ...DEFAULT_PREFERENCES
+    };
+
+    await setDoc(userDocRef, newProfile);
+    return newProfile;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}`);
   }
-
-  // Create new profile
-  const newProfile: UserProfile = {
-    userId: user.uid,
-    displayName: user.displayName || user.email?.split('@')[0] || 'Cozy Scholar',
-    email: user.email || '',
-    country: 'United States', // Default country
-    createdAt: new Date().toISOString(),
-    isPremium: false, // Free tier by default
-    xp: 0,
-    level: 1,
-    currentStreak: 0,
-    longestStreak: 0,
-    lastStudyDate: '',
-    totalMinutesStudied: 0,
-    badges: [],
-    ...DEFAULT_PREFERENCES
-  };
-
-  await setDoc(userDocRef, newProfile);
-  return newProfile;
 }
 
 // Update user profile
 export async function updateUserProfile(userId: string, updates: Partial<UserProfile>): Promise<void> {
   const userDocRef = doc(db, 'users', userId);
-  await updateDoc(userDocRef, updates);
+  try {
+    await updateDoc(userDocRef, updates);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `users/${userId}`);
+  }
 }
 
 // Log a study session
@@ -103,239 +166,266 @@ export async function logStudySession(
   subject: string, 
   xpGained: number
 ): Promise<{ log: StudyLog; levelUp: boolean; newLevel: number; badgesUnlocked: string[] }> {
-  
-  const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local time
-  const userDocRef = doc(db, 'users', userId);
-  const userSnap = await getDoc(userDocRef);
-  
-  if (!userSnap.exists()) {
-    throw new Error("User profile not found");
-  }
-  
-  const userProfile = userSnap.data() as UserProfile;
-  
-  // Calculate Streaks
-  let currentStreak = userProfile.currentStreak;
-  let longestStreak = userProfile.longestStreak;
-  const lastStudyDate = userProfile.lastStudyDate;
-  
-  if (!lastStudyDate) {
-    // First session ever
-    currentStreak = 1;
-    longestStreak = 1;
-  } else {
-    const lastDate = new Date(lastStudyDate);
-    const todayDate = new Date(todayStr);
-    const diffTime = Math.abs(todayDate.getTime() - lastDate.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === 1) {
-      // Studied yesterday, increment streak
-      currentStreak += 1;
-      if (currentStreak > longestStreak) {
-        longestStreak = currentStreak;
-      }
-    } else if (diffDays > 1) {
-      // Streak broken, reset to 1
-      currentStreak = 1;
-    }
-    // If diffDays === 0, already studied today, streak remains unchanged
-  }
-  
-  // XP formula: 1 min = 1 XP (minimum 1)
-  const actualXpGained = Math.max(1, Math.round(durationMinutes));
-
-  // Calculate XP & Level Progression
-  const newXp = (userProfile.xp || 0) + actualXpGained;
-  // 100 XP per level formula (e.g. Level 1 needs 100 XP for Level 2)
-  const newLevel = Math.floor(newXp / 100) + 1;
-  const levelUp = newLevel > (userProfile.level || 1);
-  
-  const totalMinutes = (userProfile.totalMinutesStudied || 0) + durationMinutes;
-
-  // Query previous study sessions count to check speed-demon badge
-  let totalSessionsCount = 1;
   try {
-    const logsColRef = collection(db, 'users', userId, 'studyLogs');
-    const logsSnap = await getDocs(logsColRef);
-    totalSessionsCount = logsSnap.size + 1;
-  } catch (err) {
-    console.error("Error fetching sessions for badge:", err);
-  }
-  
-  // Check Badges
-  const newlyUnlockedBadges: string[] = [];
-  const currentBadges = [...(userProfile.badges || [])];
-  
-  const checkBadge = (badgeId: string, condition: boolean) => {
-    if (condition && !currentBadges.includes(badgeId)) {
-      currentBadges.push(badgeId);
-      newlyUnlockedBadges.push(badgeId);
+    const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local time
+    const userDocRef = doc(db, 'users', userId);
+    const userSnap = await getDoc(userDocRef);
+    
+    if (!userSnap.exists()) {
+      throw new Error("User profile not found");
     }
-  };
-  
-  // Badge Definitions & Conditions
-  checkBadge('first-step', true); // Completed first session
-  checkBadge('streak-3', currentStreak >= 3);
-  checkBadge('streak-7', currentStreak >= 7);
-  checkBadge('streak-14', currentStreak >= 14);
-  checkBadge('streak-30', currentStreak >= 30);
-  checkBadge('studious-5h', totalMinutes >= 300); // 5 hours studied
-  checkBadge('studious-24h', totalMinutes >= 1440); // 24 hours studied
-  checkBadge('studious-50h', totalMinutes >= 3000); // 50 hours studied
-  
-  // Night Owl Badge: Session completed between 11 PM and 4 AM local time
-  const currentHour = new Date().getHours();
-  checkBadge('night-owl', currentHour >= 23 || currentHour < 4);
-  
-  // Early Bird Badge: Session completed between 5 AM and 8 AM
-  checkBadge('early-bird', currentHour >= 5 && currentHour < 9);
+    
+    const userProfile = userSnap.data() as UserProfile;
+    
+    // Calculate Streaks
+    let currentStreak = userProfile.currentStreak;
+    let longestStreak = userProfile.longestStreak;
+    const lastStudyDate = userProfile.lastStudyDate;
+    
+    if (!lastStudyDate) {
+      // First session ever
+      currentStreak = 1;
+      longestStreak = 1;
+    } else {
+      const lastDate = new Date(lastStudyDate);
+      const todayDate = new Date(todayStr);
+      const diffTime = Math.abs(todayDate.getTime() - lastDate.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays === 1) {
+        // Studied yesterday, increment streak
+        currentStreak += 1;
+        if (currentStreak > longestStreak) {
+          longestStreak = currentStreak;
+        }
+      } else if (diffDays > 1) {
+        // Streak broken, reset to 1
+        currentStreak = 1;
+      }
+      // If diffDays === 0, already studied today, streak remains unchanged
+    }
+    
+    // XP formula: 1 min = 1 XP (minimum 1)
+    const actualXpGained = Math.max(1, Math.round(durationMinutes));
 
-  // New Custom Badges
-  checkBadge('globe-trotter', !!userProfile.country);
-  checkBadge('deep-thinker', durationMinutes >= 45);
-  checkBadge('speed-demon', totalSessionsCount >= 5);
-  checkBadge('grandmaster', newLevel >= 10);
+    // Calculate XP & Level Progression
+    const newXp = (userProfile.xp || 0) + actualXpGained;
+    // 100 XP per level formula (e.g. Level 1 needs 100 XP for Level 2)
+    const newLevel = Math.floor(newXp / 100) + 1;
+    const levelUp = newLevel > (userProfile.level || 1);
+    
+    const totalMinutes = (userProfile.totalMinutesStudied || 0) + durationMinutes;
 
-  // 8 More Custom Badges
-  checkBadge('monk-mode', durationMinutes >= 90);
-  checkBadge('knowledge-sponge', totalSessionsCount >= 30);
-  checkBadge('scholarly-century', totalSessionsCount >= 100);
-  checkBadge('zen-master', userProfile.ambientSound !== 'none');
-  checkBadge('weekend-warrior', new Date().getDay() === 0 || new Date().getDay() === 6);
-  checkBadge('creative-genius', ['matcha-latte', 'lavender-mist', 'pastel-dream', 'peach-sorbet', 'ocean-breeze', 'autumn-leaves'].includes(userProfile.theme || ''));
-  checkBadge('customizer', !!userProfile.timeFont && userProfile.timeFont !== 'font-timer-mono');
-  checkBadge('perfectionist', durationMinutes >= 25);
+    // Query previous study sessions count to check speed-demon badge
+    let totalSessionsCount = 1;
+    try {
+      const logsColRef = collection(db, 'users', userId, 'studyLogs');
+      const logsSnap = await getDocs(logsColRef);
+      totalSessionsCount = logsSnap.size + 1;
+    } catch (err) {
+      console.error("Error fetching sessions for badge:", err);
+    }
+    
+    // Check Badges
+    const newlyUnlockedBadges: string[] = [];
+    const currentBadges = [...(userProfile.badges || [])];
+    
+    const checkBadge = (badgeId: string, condition: boolean) => {
+      if (condition && !currentBadges.includes(badgeId)) {
+        currentBadges.push(badgeId);
+        newlyUnlockedBadges.push(badgeId);
+      }
+    };
+    
+    // Badge Definitions & Conditions
+    checkBadge('first-step', true); // Completed first session
+    checkBadge('streak-3', currentStreak >= 3);
+    checkBadge('streak-7', currentStreak >= 7);
+    checkBadge('streak-14', currentStreak >= 14);
+    checkBadge('streak-30', currentStreak >= 30);
+    checkBadge('studious-5h', totalMinutes >= 300); // 5 hours studied
+    checkBadge('studious-24h', totalMinutes >= 1440); // 24 hours studied
+    checkBadge('studious-50h', totalMinutes >= 3000); // 50 hours studied
+    
+    // Night Owl Badge: Session completed between 11 PM and 4 AM local time
+    const currentHour = new Date().getHours();
+    checkBadge('night-owl', currentHour >= 23 || currentHour < 4);
+    
+    // Early Bird Badge: Session completed between 5 AM and 8 AM
+    checkBadge('early-bird', currentHour >= 5 && currentHour < 9);
 
-  // Update User Profile in Firestore
-  const updatedProfile: Partial<UserProfile> = {
-    xp: newXp,
-    level: newLevel,
-    currentStreak,
-    longestStreak,
-    lastStudyDate: todayStr,
-    totalMinutesStudied: totalMinutes,
-    badges: currentBadges
-  };
-  
-  await updateDoc(userDocRef, updatedProfile);
-  
-  // Add to studyLogs subcollection
-  const studyLogsColRef = collection(db, 'users', userId, 'studyLogs');
-  const newLogRef = doc(studyLogsColRef);
-  const newLog: StudyLog = {
-    logId: newLogRef.id,
-    userId,
-    startTime: new Date(Date.now() - durationMinutes * 60 * 1000).toISOString(),
-    endTime: new Date().toISOString(),
-    durationMinutes,
-    subject: subject || 'General Study',
-    xpGained: actualXpGained,
-    createdAt: new Date().toISOString()
-  };
-  
-  await setDoc(newLogRef, newLog);
-  
-  return {
-    log: newLog,
-    levelUp,
-    newLevel,
-    badgesUnlocked: newlyUnlockedBadges
-  };
+    // New Custom Badges
+    checkBadge('globe-trotter', !!userProfile.country);
+    checkBadge('deep-thinker', durationMinutes >= 45);
+    checkBadge('speed-demon', totalSessionsCount >= 5);
+    checkBadge('grandmaster', newLevel >= 10);
+
+    // 8 More Custom Badges
+    checkBadge('monk-mode', durationMinutes >= 90);
+    checkBadge('knowledge-sponge', totalSessionsCount >= 30);
+    checkBadge('scholarly-century', totalSessionsCount >= 100);
+    checkBadge('zen-master', userProfile.ambientSound !== 'none');
+    checkBadge('weekend-warrior', new Date().getDay() === 0 || new Date().getDay() === 6);
+    checkBadge('creative-genius', ['matcha-latte', 'lavender-mist', 'pastel-dream', 'peach-sorbet', 'ocean-breeze', 'autumn-leaves'].includes(userProfile.theme || ''));
+    checkBadge('customizer', !!userProfile.timeFont && userProfile.timeFont !== 'font-timer-mono');
+    checkBadge('perfectionist', durationMinutes >= 25);
+
+    // Update User Profile in Firestore
+    const updatedProfile: Partial<UserProfile> = {
+      xp: newXp,
+      level: newLevel,
+      currentStreak,
+      longestStreak,
+      lastStudyDate: todayStr,
+      totalMinutesStudied: totalMinutes,
+      badges: currentBadges
+    };
+    
+    await updateDoc(userDocRef, updatedProfile);
+    
+    // Add to studyLogs subcollection
+    const studyLogsColRef = collection(db, 'users', userId, 'studyLogs');
+    const newLogRef = doc(studyLogsColRef);
+    const newLog: StudyLog = {
+      logId: newLogRef.id,
+      userId,
+      startTime: new Date(Date.now() - durationMinutes * 60 * 1000).toISOString(),
+      endTime: new Date().toISOString(),
+      durationMinutes,
+      subject: subject || 'General Study',
+      xpGained: actualXpGained,
+      createdAt: new Date().toISOString()
+    };
+    
+    await setDoc(newLogRef, newLog);
+    
+    return {
+      log: newLog,
+      levelUp,
+      newLevel,
+      badgesUnlocked: newlyUnlockedBadges
+    };
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `users/${userId}/studyLogs`);
+  }
 }
 
 // Fetch study logs for a user
 export async function getStudyLogs(userId: string): Promise<StudyLog[]> {
-  const studyLogsColRef = collection(db, 'users', userId, 'studyLogs');
-  const q = query(studyLogsColRef, orderBy('createdAt', 'desc'));
-  const snap = await getDocs(q);
-  
-  const logs: StudyLog[] = [];
-  snap.forEach(doc => {
-    logs.push(doc.data() as StudyLog);
-  });
-  return logs;
+  try {
+    const studyLogsColRef = collection(db, 'users', userId, 'studyLogs');
+    const q = query(studyLogsColRef, orderBy('createdAt', 'desc'));
+    const snap = await getDocs(q);
+    
+    const logs: StudyLog[] = [];
+    snap.forEach(doc => {
+      logs.push(doc.data() as StudyLog);
+    });
+    return logs;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, `users/${userId}/studyLogs`);
+  }
 }
 
 // Complete data deletion (GDPR / "Delete my account" requirement)
 export async function deleteUserAccountData(userId: string): Promise<void> {
-  const batch = writeBatch(db);
-  
-  // 1. Delete all study logs
-  const studyLogsColRef = collection(db, 'users', userId, 'studyLogs');
-  const studyLogsSnap = await getDocs(studyLogsColRef);
-  studyLogsSnap.forEach(doc => {
-    batch.delete(doc.ref);
-  });
-  
-  // 2. Delete user profile
-  const userDocRef = doc(db, 'users', userId);
-  batch.delete(userDocRef);
-  
-  await batch.commit();
-  
-  // 3. Delete Firebase Auth user
-  const currentUser = auth.currentUser;
-  if (currentUser && currentUser.uid === userId) {
-    await deleteUser(currentUser);
+  try {
+    const batch = writeBatch(db);
+    
+    // 1. Delete all study logs
+    const studyLogsColRef = collection(db, 'users', userId, 'studyLogs');
+    const studyLogsSnap = await getDocs(studyLogsColRef);
+    studyLogsSnap.forEach(doc => {
+      batch.delete(doc.ref);
+    });
+    
+    // 2. Delete user profile
+    const userDocRef = doc(db, 'users', userId);
+    batch.delete(userDocRef);
+    
+    await batch.commit();
+    
+    // 3. Delete Firebase Auth user
+    const currentUser = auth.currentUser;
+    if (currentUser && currentUser.uid === userId) {
+      await deleteUser(currentUser);
+    }
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `users/${userId}`);
   }
 }
 
 // --- MINI CALENDAR & STUDY PLANNER FIRESTORE HELPER FUNCTIONS ---
 
 export async function getPlannerTasks(userId: string): Promise<PlannerTask[]> {
-  const colRef = collection(db, 'users', userId, 'plannerTasks');
-  const snap = await getDocs(colRef);
-  const tasks: PlannerTask[] = [];
-  snap.forEach(doc => {
-    tasks.push(doc.data() as PlannerTask);
-  });
-  return tasks;
+  try {
+    const colRef = collection(db, 'users', userId, 'plannerTasks');
+    const snap = await getDocs(colRef);
+    const tasks: PlannerTask[] = [];
+    snap.forEach(doc => {
+      tasks.push(doc.data() as PlannerTask);
+    });
+    return tasks;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, `users/${userId}/plannerTasks`);
+  }
 }
 
 export async function savePlannerTask(userId: string, task: PlannerTask): Promise<void> {
-  const docRef = doc(db, 'users', userId, 'plannerTasks', task.taskId);
-  await setDoc(docRef, task);
+  try {
+    const docRef = doc(db, 'users', userId, 'plannerTasks', task.taskId);
+    await setDoc(docRef, task);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `users/${userId}/plannerTasks/${task.taskId}`);
+  }
 }
 
 export async function deletePlannerTask(userId: string, taskId: string): Promise<void> {
-  const docRef = doc(db, 'users', userId, 'plannerTasks', taskId);
-  await deleteDoc(docRef);
+  try {
+    const docRef = doc(db, 'users', userId, 'plannerTasks', taskId);
+    await deleteDoc(docRef);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, `users/${userId}/plannerTasks/${taskId}`);
+  }
 }
 
 export async function checkPlannerBadges(userId: string): Promise<string[]> {
-  const userDocRef = doc(db, 'users', userId);
-  const userSnap = await getDoc(userDocRef);
-  if (!userSnap.exists()) return [];
+  try {
+    const userDocRef = doc(db, 'users', userId);
+    const userSnap = await getDoc(userDocRef);
+    if (!userSnap.exists()) return [];
 
-  const userProfile = userSnap.data() as UserProfile;
-  const currentBadges = [...(userProfile.badges || [])];
-  const newlyUnlocked: string[] = [];
+    const userProfile = userSnap.data() as UserProfile;
+    const currentBadges = [...(userProfile.badges || [])];
+    const newlyUnlocked: string[] = [];
 
-  const colRef = collection(db, 'users', userId, 'plannerTasks');
-  const snap = await getDocs(colRef);
-  
-  const tasks: PlannerTask[] = [];
-  snap.forEach(doc => {
-    tasks.push(doc.data() as PlannerTask);
-  });
+    const colRef = collection(db, 'users', userId, 'plannerTasks');
+    const snap = await getDocs(colRef);
+    
+    const tasks: PlannerTask[] = [];
+    snap.forEach(doc => {
+      tasks.push(doc.data() as PlannerTask);
+    });
 
-  const completedCount = tasks.filter(t => t.completed).length;
-  const uniqueDatesCount = new Set(tasks.map(t => t.date)).size;
+    const completedCount = tasks.filter(t => t.completed).length;
+    const uniqueDatesCount = new Set(tasks.map(t => t.date)).size;
 
-  const checkBadge = (badgeId: string, condition: boolean) => {
-    if (condition && !currentBadges.includes(badgeId)) {
-      currentBadges.push(badgeId);
-      newlyUnlocked.push(badgeId);
+    const checkBadge = (badgeId: string, condition: boolean) => {
+      if (condition && !currentBadges.includes(badgeId)) {
+        currentBadges.push(badgeId);
+        newlyUnlocked.push(badgeId);
+      }
+    };
+
+    checkBadge('task-slayer', completedCount >= 10);
+    checkBadge('planner-master', uniqueDatesCount >= 3);
+
+    if (newlyUnlocked.length > 0) {
+      await updateDoc(userDocRef, { badges: currentBadges });
     }
-  };
 
-  checkBadge('task-slayer', completedCount >= 10);
-  checkBadge('planner-master', uniqueDatesCount >= 3);
-
-  if (newlyUnlocked.length > 0) {
-    await updateDoc(userDocRef, { badges: currentBadges });
+    return newlyUnlocked;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, `users/${userId}/plannerTasks`);
   }
-
-  return newlyUnlocked;
 }
