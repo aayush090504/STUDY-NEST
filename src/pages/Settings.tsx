@@ -402,6 +402,8 @@ export const Settings: React.FC = () => {
         </div>
       </div>
 
+
+
       {/* Account Deletion Confirmation Modal Overlay */}
       <AnimatePresence>
         {showDeleteConfirm && (

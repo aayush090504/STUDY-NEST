@@ -10,4 +10,4 @@ Allow: /terms
 Disallow: /settings
 
 # Sitemap Location for Google Search Console and crawlers
-Sitemap: https://ais-pre-ndd5pqvevy3rljrccu2dch-332117312810.asia-southeast1.run.app/sitemap.xml
+Sitemap: https://study-nest-cozy.vercel.app/sitemap.xml
