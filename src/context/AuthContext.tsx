@@ -6,6 +6,8 @@ import {
   signOut, 
   GoogleAuthProvider, 
   signInWithPopup, 
+  signInWithRedirect,
+  getRedirectResult,
   onAuthStateChanged 
 } from 'firebase/auth';
 import { 
@@ -26,6 +28,7 @@ interface AuthContextType {
   loginWithEmail: (email: string, password: string) => Promise<void>;
   signupWithEmail: (email: string, password: string, displayName: string, country?: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
+  loginWithGoogleRedirect: () => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
   logSession: (durationMinutes: number, subject: string, xpGained: number) => Promise<{
@@ -60,24 +63,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
+    let active = true;
+
+    // Check for Google Redirect login callbacks on initial load
+    const handleRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result?.user && active) {
+          console.log("Google redirect sign-in callback successful:", result.user);
+          setUser(result.user);
+          const userProfile = await getOrCreateUserProfile(result.user);
+          setProfile(userProfile);
+        }
+      } catch (error) {
+        console.error("Error processing Google redirect login callback:", error);
+      }
+    };
+
+    handleRedirectResult();
+
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setLoading(true);
-      if (currentUser) {
+      if (currentUser && active) {
         setUser(currentUser);
         try {
           const userProfile = await getOrCreateUserProfile(currentUser);
           setProfile(userProfile);
         } catch (error) {
-          console.error("Error fetching or creating user profile:", error);
+          console.error("Error fetching or create user profile:", error);
         }
-      } else {
+      } else if (active) {
         setUser(null);
         setProfile(null);
       }
       setLoading(false);
     });
 
-    return unsubscribe;
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   }, []);
 
   const loginWithEmail = async (email: string, password: string) => {
@@ -136,7 +161,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     try {
       const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
       await signInWithPopup(auth, provider);
+    } catch (error) {
+      setLoading(false);
+      throw error;
+    }
+  };
+
+  const loginWithGoogleRedirect = async () => {
+    setLoading(true);
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      await signInWithRedirect(auth, provider);
     } catch (error) {
       setLoading(false);
       throw error;
@@ -200,6 +238,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       loginWithEmail,
       signupWithEmail,
       loginWithGoogle,
+      loginWithGoogleRedirect,
       logout,
       updateProfile,
       logSession,
