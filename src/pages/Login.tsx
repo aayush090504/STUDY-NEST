@@ -94,10 +94,14 @@ export const Login: React.FC = () => {
       console.error("[Login] Full error object:", error);
       
       let errMsg = "An error occurred during authentication.";
-      if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
-        errMsg = "Invalid email or password combination.";
+      if (error.code === 'auth/wrong-password') {
+        errMsg = "Incorrect password. Please try again.";
+      } else if (error.code === 'auth/invalid-credential') {
+        errMsg = "Incorrect password or credentials. Please check your entries and try again.";
+      } else if (error.code === 'auth/user-not-found') {
+        errMsg = "No account found with this email address.";
       } else if (error.code === 'auth/email-already-in-use') {
-        errMsg = "An account with this email address already exists.";
+        errMsg = "This account already exists. Please log in instead.";
       } else if (error.code === 'auth/weak-password') {
         errMsg = "Password is too weak. Please use at least 6 characters.";
       } else if (error.code === 'auth/invalid-email') {
