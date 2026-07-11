@@ -36,7 +36,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 
 export const Login: React.FC = () => {
-  const { user, profile, loginWithEmail, signupWithEmail, loginWithGoogle, loading } = useAuth();
+  const { user, profile, loginWithEmail, signupWithEmail, loginWithGoogle, loginWithGoogleRedirect, loading } = useAuth();
   const navigate = useNavigate();
 
   const [isLoginMode, setIsLoginMode] = useState(true);
@@ -105,16 +105,28 @@ export const Login: React.FC = () => {
       await loginWithGoogle();
       navigate('/');
     } catch (error: any) {
-      console.error("Google Auth error:", error);
-      if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+      const isPopupClosed = error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request';
+      
+      if (!isPopupClosed) {
+        console.error("Google Auth error:", error);
+        setAuthError("Failed to authenticate with Google. Please try again.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      // If popup was closed or blocked, log a warning/info instead of a console.error
+      console.log("Google popup sign-in was closed or blocked. Attempting redirect sign-in fallback...");
+      
+      try {
+        await loginWithGoogleRedirect();
+      } catch (redirectError: any) {
+        console.warn("Google redirect sign-in fallback failed:", redirectError);
         const inIframe = window.self !== window.top;
         if (inIframe) {
           setAuthError("Google sign-in popup was closed or blocked. Because the app is running in a preview iframe, please click 'Open in New Tab' below to log in securely.");
         } else {
           setAuthError("Sign-in popup was closed before completion. Please try again.");
         }
-      } else {
-        setAuthError("Failed to authenticate with Google. Please try again.");
       }
     } finally {
       setIsSubmitting(false);
