@@ -70,18 +70,29 @@ export const Login: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("[Login] Submit event captured on login form.");
+    console.log("[Login] Form Submission Details - Mode:", isLoginMode ? "Sign In" : "Sign Up", "| Email:", email);
     setAuthError(null);
     setIsSubmitting(true);
 
     try {
       if (isLoginMode) {
+        console.log("[Login] Attempting sign-in with email using useAuth().loginWithEmail...");
         await loginWithEmail(email, password);
+        console.log("[Login] Email sign-in was completed successfully.");
       } else {
+        console.log("[Login] Attempting signup with email using useAuth().signupWithEmail...");
         await signupWithEmail(email, password, displayName, country);
+        console.log("[Login] Email signup was completed successfully.");
       }
+      console.log("[Login] Authentication succeeded. Redirecting user to home page ('/')");
       navigate('/');
     } catch (error: any) {
-      console.error("Auth error:", error);
+      console.error("[Login] Authentication submission encountered an error:");
+      console.error("[Login] Error Code:", error?.code);
+      console.error("[Login] Error Message:", error?.message);
+      console.error("[Login] Full error object:", error);
+      
       let errMsg = "An error occurred during authentication.";
       if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
         errMsg = "Invalid email or password combination.";
@@ -95,6 +106,7 @@ export const Login: React.FC = () => {
       setAuthError(errMsg);
     } finally {
       setIsSubmitting(false);
+      console.log("[Login] Form submission flow finished.");
     }
   };
 

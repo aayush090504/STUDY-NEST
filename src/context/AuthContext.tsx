@@ -107,9 +107,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loginWithEmail = async (email: string, password: string) => {
     setLoading(true);
+    console.log("[AuthContext] loginWithEmail initiated for:", email);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-    } catch (error) {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      console.log("[AuthContext] loginWithEmail successful! Logged in UID:", userCredential.user?.uid);
+    } catch (error: any) {
+      console.error("[AuthContext] loginWithEmail failed:", error);
+      console.error("[AuthContext] Error Code:", error?.code, "| Message:", error?.message);
       setLoading(false);
       throw error;
     }
@@ -117,8 +121,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signupWithEmail = async (email: string, password: string, displayName: string, country?: string) => {
     setLoading(true);
+    console.log("[AuthContext] signupWithEmail initiated for:", email);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      console.log("[AuthContext] signupWithEmail user created successfully. UID:", userCredential.user?.uid);
       // Wait a tiny bit to make sure user gets created, then create custom profile
       const newUser = userCredential.user;
       const docRef = doc(db, 'users', newUser.uid);
