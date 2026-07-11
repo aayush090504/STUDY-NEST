@@ -575,7 +575,7 @@ export const Login: React.FC = () => {
                         placeholder="Scholar Username"
                         value={displayName}
                         onChange={(e) => setDisplayName(e.target.value)}
-                        className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-stone-200 dark:border-stone-750 bg-white/50 dark:bg-stone-850 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 font-semibold text-stone-850 dark:text-stone-150 shadow-inner"
+                        className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-stone-200 dark:border-stone-750 bg-white dark:bg-stone-900 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 font-semibold text-stone-900 dark:text-stone-100 shadow-inner"
                       />
                     </div>
 
@@ -584,7 +584,7 @@ export const Login: React.FC = () => {
                       <select
                         value={country}
                         onChange={(e) => setCountry(e.target.value)}
-                        className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-stone-200 dark:border-stone-750 bg-white/50 dark:bg-stone-850 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 text-stone-700 dark:text-stone-300 font-semibold appearance-none cursor-pointer"
+                        className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-stone-200 dark:border-stone-750 bg-white dark:bg-stone-900 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 text-stone-900 dark:text-stone-100 font-semibold appearance-none cursor-pointer"
                       >
                         {COUNTRIES.map((c) => (
                           <option key={c.code} value={c.name} className="text-stone-800 dark:text-stone-100 bg-white dark:bg-stone-900">
@@ -605,7 +605,7 @@ export const Login: React.FC = () => {
                     placeholder="Email Address"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-stone-200 dark:border-stone-750 bg-white/50 dark:bg-stone-850 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 font-semibold text-stone-850 dark:text-stone-150 shadow-inner"
+                    className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-stone-200 dark:border-stone-750 bg-white dark:bg-stone-900 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 font-semibold text-stone-900 dark:text-stone-100 shadow-inner"
                   />
                 </div>
 
@@ -618,7 +618,7 @@ export const Login: React.FC = () => {
                     placeholder="Password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-stone-200 dark:border-stone-750 bg-white/50 dark:bg-stone-850 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 font-semibold text-stone-850 dark:text-stone-150 shadow-inner"
+                    className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-stone-200 dark:border-stone-750 bg-white dark:bg-stone-900 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 font-semibold text-stone-900 dark:text-stone-100 shadow-inner"
                   />
                 </div>
 

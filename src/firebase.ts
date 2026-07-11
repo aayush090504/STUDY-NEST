@@ -121,7 +121,22 @@ export async function getOrCreateUserProfile(user: User): Promise<UserProfile> {
     const userSnapshot = await getDoc(userDocRef);
 
     if (userSnapshot.exists()) {
-      return userSnapshot.data() as UserProfile;
+      const data = userSnapshot.data() as UserProfile;
+      
+      // Auto-break streak if user didn't study yesterday or today
+      if (data.currentStreak > 0 && data.lastStudyDate) {
+        const todayStr = new Date().toLocaleDateString('en-CA');
+        const lastDate = new Date(data.lastStudyDate);
+        const todayDate = new Date(todayStr);
+        const diffTime = Math.abs(todayDate.getTime() - lastDate.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        if (diffDays > 1) {
+          data.currentStreak = 0;
+          await updateDoc(userDocRef, { currentStreak: 0 });
+        }
+      }
+      
+      return data;
     }
 
     // Create new profile
@@ -201,8 +216,11 @@ export async function logStudySession(
       } else if (diffDays > 1) {
         // Streak broken, reset to 1
         currentStreak = 1;
+      } else if (currentStreak === 0) {
+        // Streak was broken/reset to 0 previously, but starting new streak today
+        currentStreak = 1;
       }
-      // If diffDays === 0, already studied today, streak remains unchanged
+      // If diffDays === 0 and currentStreak > 0, already studied today, streak remains unchanged
     }
     
     // XP formula: 1 min = 1 XP (minimum 1)

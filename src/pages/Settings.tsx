@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { THEMES, COUNTRIES, FONTS } from '../lib/constants';
 import { 
-  Settings as SettingsIcon, LogOut, Trash2, Save, Sparkles, Volume2, Bell, Check, Key, Globe, Type
+  Settings as SettingsIcon, LogOut, Trash2, Save, Volume2, Bell, Check, Globe, Type
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
@@ -34,14 +34,39 @@ export const Settings: React.FC = () => {
   const currentThemeId = profile?.theme || 'warm-cozy';
   const theme = THEMES.find(t => t.id === currentThemeId) || THEMES[0];
 
+  const isDarkTheme = ['dark-academia', 'midnight-chill', 'cyberpunk-study', 'espresso-bar'].includes(theme.id);
+
+  // Dynamic Tailwind styling variables to prevent clash with system dark mode overrides
+  const inputClasses = `w-full px-4 py-3 rounded-xl border text-sm font-semibold focus:outline-none focus:ring-2 ${
+    isDarkTheme
+      ? 'border-stone-700 bg-stone-900 text-stone-100 placeholder-stone-500 focus:ring-amber-500 focus:border-amber-500'
+      : 'border-stone-200 bg-white text-stone-900 placeholder-stone-400 focus:ring-amber-500 focus:border-amber-500'
+  }`;
+
+  const labelClasses = `block text-xs font-bold uppercase tracking-wider mb-2 ${
+    isDarkTheme ? 'text-stone-400' : 'text-stone-500'
+  }`;
+
+  const subLabelClasses = `block text-xs font-bold mb-1.5 ${
+    isDarkTheme ? 'text-stone-400' : 'text-stone-600'
+  }`;
+
+  const headerClasses = `text-sm font-bold mb-4 ${
+    isDarkTheme ? 'text-stone-300' : 'text-stone-700'
+  }`;
+
+  const optionClasses = isDarkTheme
+    ? 'bg-stone-900 text-stone-100'
+    : 'bg-white text-stone-900';
+
   if (!user) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-6 text-center max-w-md mx-auto">
         <div className="w-16 h-16 bg-amber-500/10 text-amber-500 rounded-full flex items-center justify-center mb-4">
           <SettingsIcon className="w-8 h-8" />
         </div>
-        <h2 className="text-2xl font-bold text-stone-800 dark:text-stone-100">Access Settings</h2>
-        <p className="text-stone-500 dark:text-stone-400 mt-2 mb-6">
+        <h2 className={`text-2xl font-bold ${theme.colors.text}`}>Access Settings</h2>
+        <p className={`mt-2 mb-6 ${theme.colors.muted}`}>
           Please sign in to customize your study defaults, choose aesthetic themes, and adjust study timers.
         </p>
         <button
@@ -142,133 +167,133 @@ export const Settings: React.FC = () => {
           <form onSubmit={handleSaveSettings} className={`p-6 rounded-3xl ${theme.colors.card} shadow space-y-6`}>
             {/* Display Name */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-2">Display Name</label>
+              <label className={labelClasses}>Display Name</label>
               <input
                 type="text"
                 required
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-stone-700 bg-white/50 dark:bg-stone-800 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                className={inputClasses}
               />
             </div>
 
-            <hr className="border-stone-200 dark:border-stone-800" />
+            <hr className={`border-t ${theme.colors.border}`} />
 
             {/* Native Country Selector */}
             <div>
               <div className="flex items-center space-x-1.5 mb-2">
                 <Globe className="w-4 h-4 text-amber-500" />
-                <label className="block text-xs font-bold uppercase tracking-wider text-stone-500">Native Country & Timezone</label>
+                <label className={labelClasses}>Native Country & Timezone</label>
               </div>
               <select
                 value={country}
                 onChange={(e) => setCountry(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-stone-700 bg-white/50 dark:bg-stone-800 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 font-semibold text-stone-700 dark:text-stone-250"
+                className={`font-semibold ${inputClasses}`}
               >
                 {COUNTRIES.map((c) => (
-                  <option key={c.name} value={c.name} className="bg-white dark:bg-stone-900 text-stone-800 dark:text-stone-100">
+                  <option key={c.name} value={c.name} className={optionClasses}>
                     {c.name} (GMT timezone)
                   </option>
                 ))}
               </select>
-              <p className="text-[10px] text-stone-400 dark:text-stone-500 mt-1.5 font-medium">
+              <p className={`text-[10px] mt-1.5 font-medium ${isDarkTheme ? 'text-stone-500' : 'text-stone-400'}`}>
                 Changing your country updates your native local clock in the header bar of the Nest instantly.
               </p>
             </div>
 
-            <hr className="border-stone-200 dark:border-stone-800" />
+            <hr className={`border-t ${theme.colors.border}`} />
 
             {/* Timer Durations Grid */}
             <div>
-              <h3 className="text-sm font-bold text-stone-700 dark:text-stone-300 mb-4">Timer Durations (minutes)</h3>
+              <h3 className={headerClasses}>Timer Durations (minutes)</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-stone-500 mb-1.5">Work Session</label>
+                  <label className={subLabelClasses}>Work Session</label>
                   <input
                     type="number"
                     min="1"
                     max="120"
                     value={timerWorkMinutes}
                     onChange={(e) => setTimerWorkMinutes(Number(e.target.value))}
-                    className="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-stone-700 bg-white/50 dark:bg-stone-800 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    className={inputClasses}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-stone-500 mb-1.5">Short Break</label>
+                  <label className={subLabelClasses}>Short Break</label>
                   <input
                     type="number"
                     min="1"
                     max="60"
                     value={timerBreakMinutes}
                     onChange={(e) => setTimerBreakMinutes(Number(e.target.value))}
-                    className="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-stone-700 bg-white/50 dark:bg-stone-800 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    className={inputClasses}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-stone-500 mb-1.5">Long Break</label>
+                  <label className={subLabelClasses}>Long Break</label>
                   <input
                     type="number"
                     min="1"
                     max="60"
                     value={timerLongBreakMinutes}
                     onChange={(e) => setTimerLongBreakMinutes(Number(e.target.value))}
-                    className="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-stone-700 bg-white/50 dark:bg-stone-800 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    className={inputClasses}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-stone-500 mb-1.5">Long Break Interval</label>
+                  <label className={subLabelClasses}>Long Break Interval</label>
                   <input
                     type="number"
                     min="1"
                     max="12"
                     value={timerLongBreakInterval}
                     onChange={(e) => setTimerLongBreakInterval(Number(e.target.value))}
-                    className="w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-stone-700 bg-white/50 dark:bg-stone-800 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    className={inputClasses}
                   />
                 </div>
               </div>
             </div>
 
-            <hr className="border-stone-200 dark:border-stone-800" />
+            <hr className={`border-t ${theme.colors.border}`} />
 
             {/* Toggle options */}
             <div className="space-y-4">
-              <h3 className="text-sm font-bold text-stone-700 dark:text-stone-300">Sound & Alerts</h3>
+              <h3 className={headerClasses}>Sound & Alerts</h3>
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <Volume2 className="w-4 h-4 text-stone-500" />
-                  <span className="text-sm text-stone-600 dark:text-stone-300">UI & Alert Sounds</span>
+                  <span className={`text-sm ${isDarkTheme ? 'text-stone-350' : 'text-stone-700'}`}>UI & Alert Sounds</span>
                 </div>
                 <input
                   type="checkbox"
                   checked={soundEnabled}
                   onChange={(e) => setSoundEnabled(e.target.checked)}
-                  className="w-4 h-4 text-amber-600 accent-amber-500"
+                  className="w-4 h-4 text-amber-600 accent-amber-500 cursor-pointer"
                 />
               </div>
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <Bell className="w-4 h-4 text-stone-500" />
-                  <span className="text-sm text-stone-600 dark:text-stone-300">Browser Notifications</span>
+                  <span className={`text-sm ${isDarkTheme ? 'text-stone-350' : 'text-stone-700'}`}>Browser Notifications</span>
                 </div>
                 <input
                   type="checkbox"
                   checked={notificationsEnabled}
                   onChange={(e) => setNotificationsEnabled(e.target.checked)}
-                  className="w-4 h-4 text-amber-600 accent-amber-500"
+                  className="w-4 h-4 text-amber-600 accent-amber-500 cursor-pointer"
                 />
               </div>
             </div>
 
             {/* Alert / Feedback messages */}
             {successMsg && (
-              <div className="p-3.5 bg-emerald-500/10 text-emerald-600 text-xs font-bold rounded-xl flex items-center space-x-2">
+              <div className="p-3.5 bg-emerald-500/10 text-emerald-600 text-xs font-bold rounded-xl flex items-center space-x-2 animate-fade-in">
                 <span>{successMsg}</span>
               </div>
             )}
             {errorMsg && (
-              <div className="p-3.5 bg-rose-500/10 text-rose-600 text-xs font-bold rounded-xl flex items-center space-x-2">
+              <div className="p-3.5 bg-rose-500/10 text-rose-600 text-xs font-bold rounded-xl flex items-center space-x-2 animate-fade-in">
                 <span>{errorMsg}</span>
               </div>
             )}
@@ -290,7 +315,7 @@ export const Settings: React.FC = () => {
         <div className="space-y-6">
           {/* Theme Selector */}
           <div className={`p-6 rounded-3xl ${theme.colors.card} shadow`}>
-            <h3 className="text-sm font-bold text-stone-700 dark:text-stone-300 mb-4 flex items-center space-x-1.5">
+            <h3 className={headerClasses}>
               <span>Aesthetic Themes</span>
             </h3>
 
@@ -305,11 +330,13 @@ export const Settings: React.FC = () => {
                     className={`w-full p-3.5 rounded-xl text-left border flex items-center justify-between transition-all ${
                       isSelected
                         ? 'border-indigo-500 bg-indigo-500/5 shadow-sm'
-                        : 'border-stone-100 dark:border-stone-850 bg-stone-50/30 hover:bg-stone-50'
+                        : isDarkTheme
+                          ? 'border-stone-850 bg-stone-900/40 hover:bg-stone-900/60'
+                          : 'border-stone-100 bg-stone-50/50 hover:bg-stone-100/60'
                     }`}
                   >
                     <div>
-                      <div className="text-xs font-black text-stone-800 dark:text-stone-200 flex items-center">
+                      <div className={`text-xs font-black flex items-center ${isDarkTheme ? 'text-stone-200' : 'text-stone-800'}`}>
                         {t.name}
                       </div>
                       <div className="flex space-x-1 mt-1.5">
@@ -332,11 +359,11 @@ export const Settings: React.FC = () => {
           <div className={`p-6 rounded-3xl ${theme.colors.card} shadow`}>
             <div className="flex items-center space-x-1.5 mb-2">
               <Type className="w-5 h-5 text-emerald-500" />
-              <h3 className="text-sm font-black text-stone-700 dark:text-stone-300">
+              <h3 className={`text-sm font-black ${isDarkTheme ? 'text-stone-300' : 'text-stone-700'}`}>
                 Timer Typography
               </h3>
             </div>
-            <p className="text-[11px] text-stone-400 dark:text-stone-500 mb-4 font-semibold">
+            <p className={`text-[11px] mb-4 font-semibold ${isDarkTheme ? 'text-stone-500' : 'text-stone-400'}`}>
               Choose your favorite customized font style face for your timer.
             </p>
 
@@ -352,14 +379,16 @@ export const Settings: React.FC = () => {
                     className={`w-full p-3 rounded-xl border text-left flex items-center justify-between transition-all ${
                       isSelected
                         ? 'border-emerald-500 bg-emerald-500/5 shadow-xs'
-                        : 'border-stone-100 dark:border-stone-850 bg-stone-50/30 hover:bg-stone-50'
+                        : isDarkTheme
+                          ? 'border-stone-850 bg-stone-900/40 hover:bg-stone-900/60'
+                          : 'border-stone-100 bg-stone-50/50 hover:bg-stone-100/60'
                     }`}
                   >
                     <div>
-                      <div className="text-[11px] font-bold text-stone-500 dark:text-stone-400">
+                      <div className={`text-[11px] font-bold ${isDarkTheme ? 'text-stone-400' : 'text-stone-500'}`}>
                         {f.name}
                       </div>
-                      <div className={`text-xl font-black mt-0.5 ${f.className} text-stone-800 dark:text-stone-100`}>
+                      <div className={`text-xl font-black mt-0.5 ${f.className} ${isDarkTheme ? 'text-stone-200' : 'text-stone-800'}`}>
                         25:00
                       </div>
                     </div>
@@ -376,23 +405,31 @@ export const Settings: React.FC = () => {
 
           {/* Profile Actions & Danger Zone */}
           <div className={`p-6 rounded-3xl ${theme.colors.card} shadow space-y-4`}>
-            <h3 className="text-sm font-bold text-stone-700 dark:text-stone-300">Account Management</h3>
+            <h3 className={`text-sm font-bold ${isDarkTheme ? 'text-stone-300' : 'text-stone-700'}`}>Account Management</h3>
 
             <button
               onClick={handleLogout}
-              className="w-full py-3 rounded-xl bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 transition text-stone-700 dark:text-stone-300 font-bold text-xs flex items-center justify-center space-x-1.5"
+              className={`w-full py-3 rounded-xl transition font-bold text-xs flex items-center justify-center space-x-1.5 ${
+                isDarkTheme
+                  ? 'bg-stone-800 hover:bg-stone-700 text-stone-300'
+                  : 'bg-stone-100 hover:bg-stone-200 text-stone-700'
+              }`}
             >
               <LogOut className="w-4 h-4" />
               <span>Log Out</span>
             </button>
 
-            <hr className="border-stone-200 dark:border-stone-800" />
+            <hr className={`border-t ${theme.colors.border}`} />
 
             <div>
-              <h4 className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-2">Danger Zone</h4>
+              <h4 className={`text-xs font-bold uppercase tracking-wider mb-2 ${isDarkTheme ? 'text-stone-500' : 'text-stone-400'}`}>Danger Zone</h4>
               <button
                 onClick={() => setShowDeleteConfirm(true)}
-                className="w-full py-3 rounded-xl border border-rose-200 dark:border-rose-900 bg-rose-50/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500 hover:text-white transition font-bold text-xs flex items-center justify-center space-x-1.5"
+                className={`w-full py-3 rounded-xl border transition font-bold text-xs flex items-center justify-center space-x-1.5 ${
+                  isDarkTheme
+                    ? 'border-rose-950 bg-rose-950/10 text-rose-400 hover:bg-rose-900 hover:text-white'
+                    : 'border-rose-200 bg-rose-50/10 text-rose-600 hover:bg-rose-500 hover:text-white'
+                }`}
               >
                 <Trash2 className="w-4 h-4" />
                 <span>Delete My Account</span>
@@ -401,8 +438,6 @@ export const Settings: React.FC = () => {
           </div>
         </div>
       </div>
-
-
 
       {/* Account Deletion Confirmation Modal Overlay */}
       <AnimatePresence>
@@ -417,16 +452,16 @@ export const Settings: React.FC = () => {
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
-              className="bg-white dark:bg-stone-900 p-8 rounded-3xl shadow-2xl max-w-md w-full"
+              className={`p-8 rounded-3xl shadow-2xl max-w-md w-full ${isDarkTheme ? 'bg-stone-900 text-stone-100' : 'bg-white text-stone-800'}`}
             >
               <div className="w-14 h-14 bg-rose-500/10 text-rose-500 rounded-full flex items-center justify-center mb-4">
                 <Trash2 className="w-7 h-7" />
               </div>
-              <h2 className="text-xl font-extrabold text-stone-900 dark:text-stone-100">Permanent Account Deletion</h2>
-              <p className="text-stone-500 dark:text-stone-400 text-xs mt-2 leading-relaxed">
+              <h2 className={`text-xl font-extrabold ${isDarkTheme ? 'text-stone-100' : 'text-stone-900'}`}>Permanent Account Deletion</h2>
+              <p className={`text-xs mt-2 leading-relaxed ${isDarkTheme ? 'text-stone-400' : 'text-stone-500'}`}>
                 This action is <span className="font-bold text-rose-500">irreversible</span>. Wiping your account will permanently delete:
               </p>
-              <ul className="list-disc list-inside text-[11px] text-stone-500 dark:text-stone-400 mt-2 space-y-1.5 ml-1">
+              <ul className={`list-disc list-inside text-[11px] mt-2 space-y-1.5 ml-1 ${isDarkTheme ? 'text-stone-400' : 'text-stone-500'}`}>
                 <li>Your entire study logs history</li>
                 <li>Your XP profile progress and Level {profile?.level} achievements</li>
                 <li>All earned milestone badges</li>
@@ -434,7 +469,7 @@ export const Settings: React.FC = () => {
               </ul>
 
               <div className="mt-5">
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-400 mb-1.5">
+                <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1.5 ${isDarkTheme ? 'text-stone-500' : 'text-stone-400'}`}>
                   Type <span className="font-bold text-rose-500">"DELETE"</span> below to confirm:
                 </label>
                 <input
@@ -442,7 +477,11 @@ export const Settings: React.FC = () => {
                   value={confirmDeleteText}
                   onChange={(e) => setConfirmDeleteText(e.target.value)}
                   placeholder="DELETE"
-                  className="w-full px-4 py-3 rounded-xl border border-rose-200 dark:border-rose-900 bg-rose-50/10 focus:outline-none focus:ring-2 focus:ring-rose-500 text-center font-bold tracking-widest text-sm text-rose-600"
+                  className={`w-full px-4 py-3 rounded-xl border text-center font-bold tracking-widest text-sm text-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-500 ${
+                    isDarkTheme
+                      ? 'border-rose-950 bg-rose-950/20'
+                      : 'border-rose-200 bg-rose-50/10'
+                  }`}
                 />
               </div>
 
@@ -452,7 +491,11 @@ export const Settings: React.FC = () => {
                     setShowDeleteConfirm(false);
                     setConfirmDeleteText('');
                   }}
-                  className="py-3 rounded-xl bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 transition text-stone-700 dark:text-stone-350 font-bold text-xs text-center"
+                  className={`py-3 rounded-xl transition font-bold text-xs text-center ${
+                    isDarkTheme
+                      ? 'bg-stone-800 hover:bg-stone-700 text-stone-350'
+                      : 'bg-stone-100 hover:bg-stone-200 text-stone-700'
+                  }`}
                 >
                   Cancel
                 </button>
@@ -462,7 +505,7 @@ export const Settings: React.FC = () => {
                   className={`py-3 rounded-xl text-white font-bold text-xs text-center shadow ${
                     confirmDeleteText === 'DELETE' 
                       ? 'bg-rose-600 hover:bg-rose-700' 
-                      : 'bg-rose-300 cursor-not-allowed'
+                      : 'bg-rose-350 cursor-not-allowed'
                   }`}
                 >
                   Permanently Delete

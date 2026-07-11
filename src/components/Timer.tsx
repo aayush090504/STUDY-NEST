@@ -20,7 +20,8 @@ import {
   CheckCircle2,
   Type,
   EyeOff,
-  Sliders
+  Sliders,
+  Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -419,6 +420,16 @@ export const Timer: React.FC = () => {
     }
   };
 
+  const handleFontChange = async (fontId: string) => {
+    try {
+      if (updateProfile) {
+        await updateProfile({ timeFont: fontId });
+      }
+    } catch (error) {
+      console.error("Error updating font:", error);
+    }
+  };
+
   // Pomodoro Progress calculations
   const totalSeconds = (sessionType === 'work' 
     ? workDurationDefault 
@@ -447,9 +458,266 @@ export const Timer: React.FC = () => {
 
   return (
     <div className="flex flex-col items-center w-full max-w-xl mx-auto px-4">
-      {/* Mode Switcher Tabs */}
+      {/* Main Cozy Timer Display Card */}
+      <div className={`w-full p-6 md:p-8 rounded-3xl ${theme.colors.card} shadow-lg border ${theme.colors.border} flex flex-col items-center justify-center relative overflow-hidden mb-6 z-10`}>
+        {/* Decorative subtle ambient pattern */}
+        <div className="absolute inset-0 pointer-events-none bg-radial-gradient from-transparent to-black/5 opacity-30"></div>
+        
+        {/* Timer Mode Toggle Buttons (only show when not running) */}
+        {!isRunning && (
+          <div className="flex bg-stone-100/80 dark:bg-stone-900/50 p-1 rounded-2xl mb-6 border border-stone-200/20 dark:border-stone-850/20">
+            <button
+              onClick={() => handleModeChange('pomodoro')}
+              className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center space-x-1.5 ${
+                timerMode === 'pomodoro'
+                  ? `${theme.colors.primary} text-white shadow-md`
+                  : 'text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:hover:text-stone-200'
+              }`}
+            >
+              <Clock className="w-3.5 h-3.5" />
+              <span>Pomodoro Timer</span>
+            </button>
+            <button
+              onClick={() => handleModeChange('stopwatch')}
+              className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center space-x-1.5 ${
+                timerMode === 'stopwatch'
+                  ? `${theme.colors.primary} text-white shadow-md`
+                  : 'text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:hover:text-stone-200'
+              }`}
+            >
+              <StopCircle className="w-3.5 h-3.5" />
+              <span>Stopwatch</span>
+            </button>
+          </div>
+        )}
+
+        {/* Active Subject Focus Header */}
+        {timerMode === 'pomodoro' && (
+          <div className="mb-4 text-center">
+            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+              sessionType === 'work'
+                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+            }`}>
+              {sessionType === 'work' ? '💻 Work Session' : sessionType === 'break' ? '☕ Short Break' : '🏝️ Long Break'}
+            </span>
+            {subject ? (
+              <div className={`mt-2 text-xs font-bold ${theme.colors.text} opacity-80 flex items-center justify-center space-x-1`}>
+                <span>Focusing on:</span>
+                <span className="font-extrabold underline decoration-amber-500/40">{subject}</span>
+              </div>
+            ) : (
+              <div className="mt-2 text-xs font-bold text-stone-400 dark:text-stone-500">
+                Set your target before starting
+              </div>
+            )}
+          </div>
+        )}
+        {timerMode === 'stopwatch' && (
+          <div className="mb-4 text-center">
+            <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+              ⏱️ Continuous Study
+            </span>
+            {subject ? (
+              <div className={`mt-2 text-xs font-bold ${theme.colors.text} opacity-80 flex items-center justify-center space-x-1`}>
+                <span>Focusing on:</span>
+                <span className="font-extrabold underline decoration-indigo-500/40">{subject}</span>
+              </div>
+            ) : (
+              <div className="mt-2 text-xs font-bold text-stone-400 dark:text-stone-500">
+                Track continuous study sessions
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Main Time Display Digit Block */}
+        <div className="relative my-4 flex items-center justify-center w-64 h-64">
+          {/* SVG Progress Ring */}
+          <svg className="w-full h-full transform -rotate-90">
+            <circle
+              cx="128"
+              cy="128"
+              r="114"
+              className="stroke-stone-200/30 dark:stroke-stone-800/40"
+              strokeWidth="10"
+              fill="transparent"
+            />
+            {timerMode === 'pomodoro' && (
+              <motion.circle
+                cx="128"
+                cy="128"
+                r="114"
+                className={sessionType === 'work' ? 'stroke-amber-500' : 'stroke-emerald-500'}
+                strokeWidth="10"
+                fill="transparent"
+                strokeDasharray={2 * Math.PI * 114}
+                animate={{
+                  strokeDashoffset: (2 * Math.PI * 114) * (1 - percentage / 100)
+                }}
+                transition={{ duration: 1, ease: "linear" }}
+                strokeLinecap="round"
+              />
+            )}
+            {timerMode === 'stopwatch' && isRunning && (
+              <circle
+                cx="128"
+                cy="128"
+                r="114"
+                className="stroke-indigo-500 animate-pulse"
+                strokeWidth="10"
+                fill="transparent"
+                strokeDasharray="20 10"
+                strokeLinecap="round"
+              />
+            )}
+          </svg>
+
+          {/* Digits Center */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className={`text-5xl md:text-6xl font-black select-none tracking-tight tabular-nums ${currentFontClass} ${theme.colors.text}`}>
+              {timerMode === 'pomodoro' 
+                ? `${Math.floor(timeLeft / 60).toString().padStart(2, '0')}:${(timeLeft % 60).toString().padStart(2, '0')}`
+                : formatStopwatch(stopwatchTime)
+              }
+            </span>
+            
+            {/* Minor state display / completed items */}
+            {timerMode === 'pomodoro' && completedSessions > 0 && (
+              <div className="mt-2 text-[10px] font-black uppercase tracking-widest text-stone-400 dark:text-stone-500 flex items-center space-x-1">
+                <Flame className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
+                <span>{completedSessions} {completedSessions === 1 ? 'Cycle' : 'Cycles'} Done</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Core Action Controller Buttons */}
+        <div className="flex items-center justify-center gap-4 mt-2">
+          {/* Reset Button */}
+          <button
+            onClick={resetTimer}
+            disabled={!isRunning && (timerMode === 'pomodoro' ? timeLeft === workDurationDefault * 60 : stopwatchTime === 0)}
+            className={`p-3 rounded-2xl border transition-all ${
+              !isRunning && (timerMode === 'pomodoro' ? timeLeft === workDurationDefault * 60 : stopwatchTime === 0)
+                ? 'border-transparent bg-stone-100/40 dark:bg-stone-900/20 text-stone-300 dark:text-stone-750 cursor-not-allowed'
+                : 'border-stone-200 dark:border-stone-850 bg-white/80 dark:bg-stone-900/60 text-stone-600 dark:text-stone-300 hover:scale-105 active:scale-95 shadow-sm'
+            }`}
+            title="Reset Timer"
+          >
+            <RotateCcw className="w-5 h-5" />
+          </button>
+
+          {/* Main Start / Pause Trigger */}
+          <button
+            onClick={handlePlayClick}
+            className={`p-5 rounded-full text-white shadow-lg transition-all transform hover:scale-110 active:scale-95 ${
+              isRunning 
+                ? 'bg-stone-850 hover:bg-stone-900 dark:bg-stone-100 dark:text-stone-900' 
+                : `${theme.colors.primary} hover:opacity-90`
+            }`}
+            title={isRunning ? "Pause" : "Start Session"}
+          >
+            {isRunning ? <Pause className="w-7 h-7 fill-current" /> : <Play className="w-7 h-7 fill-current ml-0.5" />}
+          </button>
+
+          {/* Completion / Log Session study card button */}
+          {(timerMode === 'stopwatch' || sessionType === 'work') && (
+            <button
+              onClick={handleTickClick}
+              disabled={timerMode === 'pomodoro' ? timeLeft === workDurationDefault * 60 : stopwatchTime === 0}
+              className={`p-3 rounded-2xl border transition-all ${
+                (timerMode === 'pomodoro' ? timeLeft === workDurationDefault * 60 : stopwatchTime === 0)
+                  ? 'border-transparent bg-stone-100/40 dark:bg-stone-900/20 text-stone-300 dark:text-stone-750 cursor-not-allowed'
+                  : 'border-emerald-200/40 dark:border-emerald-900/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:scale-105 active:scale-95 shadow-xs font-black'
+              }`}
+              title="Complete and Log Session"
+            >
+              <CheckCircle2 className="w-5 h-5" />
+            </button>
+          )}
+
+          {/* Skip Session Button (Only Pomodoro Break/Work) */}
+          {timerMode === 'pomodoro' && isRunning && (
+            <button
+              onClick={skipSession}
+              className="p-3 rounded-2xl border border-stone-200 dark:border-stone-850 bg-white/80 dark:bg-stone-900/60 text-stone-600 dark:text-stone-300 hover:scale-105 active:scale-95 shadow-sm"
+              title="Skip Current Phase"
+            >
+              <SkipForward className="w-5 h-5" />
+            </button>
+          )}
+        </div>
+
+        {/* Subject Edit Input (only visible when not running) */}
+        {!isRunning && (
+          <div className="w-full mt-6 max-w-sm">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="What are we studying? (e.g. History)"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                className={`flex-1 px-4 py-2.5 rounded-xl border text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-amber-500 ${
+                  theme.colors.border
+                } bg-stone-50/50 dark:bg-stone-900/40 text-stone-800 dark:text-stone-100`}
+              />
+              {subject && (
+                <button
+                  onClick={() => setSubject('')}
+                  className="px-3 py-2 rounded-xl text-xs font-bold bg-stone-100 dark:bg-stone-800 text-stone-500 hover:text-stone-700"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
       {!isFocusActiveInTimer && (
-        <div className={`w-full mt-6 p-6 rounded-3xl ${theme.colors.card} shadow-lg border ${theme.colors.border}`}>
+        <>
+          {/* Timer Typography Font Selector */}
+          <div className={`w-full mt-6 p-6 rounded-3xl ${theme.colors.card} shadow-lg border ${theme.colors.border}`}>
+            <div className="flex items-center space-x-1.5 mb-2">
+              <Type className={`w-5 h-5 ${theme.colors.accent}`} />
+              <h3 className={`text-sm font-black ${theme.colors.text}`}>Timer Typography</h3>
+            </div>
+            <p className={`text-[11px] mb-4 font-semibold opacity-70 ${theme.colors.text}`}>
+              Choose your favorite customized font style face for your timer.
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              {FONTS.map((f) => {
+                const isSelected = (profile?.timeFont || 'font-timer-mono') === f.id;
+                return (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => handleFontChange(f.id)}
+                    className={`p-3 rounded-xl border text-center transition-all cursor-pointer relative flex flex-col justify-between h-full ${
+                      isSelected
+                        ? `border-amber-500 bg-amber-500/10 dark:bg-amber-500/20 shadow-xs scale-102`
+                        : `border-stone-200/40 dark:border-stone-800/40 bg-stone-100/10 dark:bg-stone-900/10 hover:bg-stone-100/20 dark:hover:bg-stone-900/20 ${theme.colors.text} opacity-80 hover:opacity-100`
+                    }`}
+                  >
+                    <div className={`text-[9px] font-black uppercase tracking-wider ${isSelected ? 'text-amber-600 dark:text-amber-400' : 'opacity-60'}`}>
+                      {f.name.replace(' (Rounded)', '')}
+                    </div>
+                    <div className={`text-lg font-black mt-1.5 ${f.className} ${isSelected ? 'text-amber-600 dark:text-amber-400' : ''}`}>
+                      25:00
+                    </div>
+                    {isSelected && (
+                      <div className="absolute top-1 right-1 p-0.5 bg-amber-500 text-white rounded-full">
+                        <Check className="w-2.5 h-2.5" />
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className={`w-full mt-6 p-6 rounded-3xl ${theme.colors.card} shadow-lg border ${theme.colors.border}`}>
           {/* Header Block */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 pb-4 border-b border-stone-200/50 dark:border-stone-800/50">
             <div className="flex items-center space-x-3">
@@ -604,6 +872,7 @@ export const Timer: React.FC = () => {
             )}
           </div>
         </div>
+        </>
       )}
 
       {/* BEFORE-TIMER FOCUS PROMPT INTENT MODAL */}
