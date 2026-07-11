@@ -656,28 +656,26 @@ export const Login: React.FC = () => {
                 <span>Google Sign-In</span>
               </button>
 
-              {/* Iframe Preview Warning */}
-              {isInIframe && (
-                <div className="mt-4 p-4 rounded-2xl bg-amber-500/10 dark:bg-amber-500/5 border border-amber-500/20 text-stone-700 dark:text-stone-350 text-[11px] font-semibold space-y-2.5">
-                  <div className="flex items-start space-x-2">
-                    <AlertCircle className="w-4.5 h-4.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                    <p className="leading-relaxed">
-                      Google sign-in popups are often blocked or fail inside nested preview iframes. For a seamless sign-in, please open StudyNest in a new tab.
-                    </p>
-                  </div>
-                  <div className="pt-1 flex">
-                    <a
-                      href={window.location.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full inline-flex items-center justify-center px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black transition-all shadow-sm space-x-1 animate-pulse"
-                    >
-                      <span>Open in New Tab</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </a>
-                  </div>
+              {/* Open in New Tab Helper */}
+              <div className="mt-4 p-4 rounded-2xl bg-amber-500/10 dark:bg-amber-500/5 border border-amber-500/20 text-stone-700 dark:text-stone-350 text-[11px] font-semibold space-y-2.5">
+                <div className="flex items-start space-x-2">
+                  <AlertCircle className="w-4.5 h-4.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                  <p className="leading-relaxed">
+                    Google sign-in popups can sometimes be blocked or fail. For a seamless sign-in, please open StudyNest in a new tab.
+                  </p>
                 </div>
-              )}
+                <div className="pt-1 flex">
+                  <a
+                    href={window.location.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full inline-flex items-center justify-center px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black transition-all shadow-sm space-x-1 animate-pulse"
+                  >
+                    <span>Open in New Tab</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+              </div>
 
             </motion.div>
           </div>

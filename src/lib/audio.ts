@@ -1,14 +1,24 @@
 // A high-quality Web Audio API Synthesizer for cozy, looping ambient sounds.
 // This guarantees zero external dependencies and 100% reliability offline without heavy assets.
 
+interface TrackState {
+  gainNode: GainNode | null;
+  sourceNodes: AudioNode[];
+  intervalId: any;
+  volume: number; // 0.0 to 1.0
+}
+
 class AmbientSynth {
   private ctx: AudioContext | null = null;
-  private currentType: string = 'none';
-  
-  // Node references for cleanup
-  private sourceNodes: AudioNode[] = [];
-  private gainNode: GainNode | null = null;
-  private intervalId: any = null;
+  private tracks: { [key: string]: TrackState } = {
+    rain: { gainNode: null, sourceNodes: [], intervalId: null, volume: 0 },
+    campfire: { gainNode: null, sourceNodes: [], intervalId: null, volume: 0 },
+    nebula: { gainNode: null, sourceNodes: [], intervalId: null, volume: 0 },
+    cafe: { gainNode: null, sourceNodes: [], intervalId: null, volume: 0 },
+  };
+  private masterGainNode: GainNode | null = null;
+  private masterVolume: number = 0.5;
+  public currentType: string = 'none';
 
   constructor() {
     // Audio context is initialized lazily upon user interaction to satisfy browser security policies
@@ -20,6 +30,14 @@ class AmbientSynth {
     }
     if (this.ctx.state === 'suspended') {
       this.ctx.resume();
+    }
+  }
+
+  private initMasterGain() {
+    if (!this.masterGainNode && this.ctx) {
+      this.masterGainNode = this.ctx.createGain();
+      this.masterGainNode.gain.setValueAtTime(this.masterVolume, this.ctx.currentTime);
+      this.masterGainNode.connect(this.ctx.destination);
     }
   }
 
@@ -59,60 +77,121 @@ class AmbientSynth {
     return buffer;
   }
 
+  // Legacy single-play implementation for backwards compatibility
   public play(type: string, volume: number = 0.5) {
-    this.stop();
     this.initCtx();
+    this.initMasterGain();
     
     if (type === 'none') {
       this.currentType = 'none';
+      this.stop();
       return;
     }
 
     this.currentType = type;
-    this.gainNode = this.ctx!.createGain();
-    this.gainNode.gain.setValueAtTime(volume * 0.3, this.ctx!.currentTime); // Keep sounds soft and ambient
-    this.gainNode.connect(this.ctx!.destination);
 
-    if (type === 'rain') {
-      this.startRain();
-    } else if (type === 'campfire') {
-      this.startCampfire();
-    } else if (type === 'nebula') {
-      this.startNebula();
-    } else if (type === 'cafe') {
-      this.startCafe();
+    // Turn on only the selected track, turn off everything else
+    Object.keys(this.tracks).forEach(trackId => {
+      if (trackId === type) {
+        this.setTrackVolume(trackId, volume);
+      } else {
+        this.setTrackVolume(trackId, 0);
+      }
+    });
+  }
+
+  // Set individual track volume
+  public setTrackVolume(type: string, volume: number) {
+    this.initCtx();
+    this.initMasterGain();
+
+    const track = this.tracks[type];
+    if (!track) return;
+
+    track.volume = volume;
+
+    if (volume > 0) {
+      if (!track.gainNode) {
+        track.gainNode = this.ctx!.createGain();
+        track.gainNode.connect(this.masterGainNode!);
+        
+        if (type === 'rain') {
+          this.startRainTrack();
+        } else if (type === 'campfire') {
+          this.startCampfireTrack();
+        } else if (type === 'nebula') {
+          this.startNebulaTrack();
+        } else if (type === 'cafe') {
+          this.startCafeTrack();
+        }
+      }
+      track.gainNode.gain.setValueAtTime(volume * 0.3, this.ctx!.currentTime);
+    } else {
+      this.stopTrack(type);
+    }
+
+    // Update currentType for tracking
+    const activeTracks = Object.keys(this.tracks).filter(id => this.tracks[id].volume > 0);
+    if (activeTracks.length === 0) {
+      this.currentType = 'none';
+    } else if (activeTracks.length === 1) {
+      this.currentType = activeTracks[0];
+    } else {
+      this.currentType = 'mixed';
     }
   }
 
+  // Get active track volume
+  public getTrackVolume(type: string): number {
+    return this.tracks[type]?.volume ?? 0;
+  }
+
+  // Set master volume
   public setVolume(volume: number) {
-    if (this.gainNode && this.ctx) {
-      this.gainNode.gain.setValueAtTime(volume * 0.3, this.ctx.currentTime);
+    this.masterVolume = volume;
+    if (this.masterGainNode && this.ctx) {
+      this.masterGainNode.gain.setValueAtTime(volume, this.ctx.currentTime);
     }
   }
 
-  public stop() {
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
-      this.intervalId = null;
+  // Stop a specific track
+  public stopTrack(type: string) {
+    const track = this.tracks[type];
+    if (!track) return;
+
+    if (track.intervalId) {
+      clearTimeout(track.intervalId);
+      track.intervalId = null;
     }
 
-    this.sourceNodes.forEach(node => {
+    track.sourceNodes.forEach(node => {
       try {
         (node as any).stop();
       } catch (e) {}
     });
-    this.sourceNodes = [];
-    
-    if (this.gainNode) {
-      this.gainNode.disconnect();
-      this.gainNode = null;
+    track.sourceNodes = [];
+
+    if (track.gainNode) {
+      try {
+        track.gainNode.disconnect();
+      } catch (e) {}
+      track.gainNode = null;
     }
+    track.volume = 0;
+  }
+
+  // Stop all ambient tracks
+  public stop() {
+    Object.keys(this.tracks).forEach(trackId => {
+      this.stopTrack(trackId);
+    });
     this.currentType = 'none';
   }
 
-  private startRain() {
+  private startRainTrack() {
     const ctx = this.ctx!;
-    const gain = this.gainNode!;
+    const track = this.tracks.rain;
+    const gain = track.gainNode!;
 
     // Rain sound is lowpass-filtered pink noise with slowly varying intensity
     const pinkNoise = ctx.createBufferSource();
@@ -139,12 +218,13 @@ class AmbientSynth {
     pinkNoise.start(0);
     osc.start(0);
 
-    this.sourceNodes.push(pinkNoise, osc);
+    track.sourceNodes.push(pinkNoise, osc);
   }
 
-  private startCampfire() {
+  private startCampfireTrack() {
     const ctx = this.ctx!;
-    const gain = this.gainNode!;
+    const track = this.tracks.campfire;
+    const gain = track.gainNode!;
 
     // Campfire rumble: heavily filtered pink noise
     const rumble = ctx.createBufferSource();
@@ -158,13 +238,13 @@ class AmbientSynth {
     rumble.connect(rumbleFilter);
     rumbleFilter.connect(gain);
     rumble.start(0);
-    this.sourceNodes.push(rumble);
+    track.sourceNodes.push(rumble);
 
     // Crackling sparks generator (random bursts of high-passed clicks)
     const crackleBuffer = this.createNoiseBuffer(0.1);
     
     const playSpark = () => {
-      if (this.currentType !== 'campfire' || !this.ctx) return;
+      if (track.volume <= 0 || !this.ctx || !track.gainNode) return;
       
       const spark = ctx.createBufferSource();
       spark.buffer = crackleBuffer;
@@ -186,15 +266,16 @@ class AmbientSynth {
       
       // Schedule next crackle with random delay (0.05s to 0.4s)
       const nextDelay = Math.random() * 350 + 50;
-      this.intervalId = setTimeout(playSpark, nextDelay);
+      track.intervalId = setTimeout(playSpark, nextDelay);
     };
 
     playSpark();
   }
 
-  private startNebula() {
+  private startNebulaTrack() {
     const ctx = this.ctx!;
-    const gain = this.gainNode!;
+    const track = this.tracks.nebula;
+    const gain = track.gainNode!;
 
     // Warm, lush drone: multiple detuned sine wave oscillators
     const freqs = [110, 165, 220, 275]; // A2, E3, A3, C#4
@@ -228,13 +309,14 @@ class AmbientSynth {
       osc.start(0);
       oscLFO.start(0);
       
-      this.sourceNodes.push(osc, oscLFO);
+      track.sourceNodes.push(osc, oscLFO);
     });
   }
 
-  private startCafe() {
+  private startCafeTrack() {
     const ctx = this.ctx!;
-    const gain = this.gainNode!;
+    const track = this.tracks.cafe;
+    const gain = track.gainNode!;
 
     // Cafe background hum: low-mid filtered white noise
     const hum = ctx.createBufferSource();
@@ -249,7 +331,7 @@ class AmbientSynth {
     hum.connect(humFilter);
     humFilter.connect(gain);
     hum.start(0);
-    this.sourceNodes.push(hum);
+    track.sourceNodes.push(hum);
 
     // Lo-Fi Chord Progression: Infinite cozy jazz electric piano loop
     // Chords: Cmaj9 -> Am9 -> Dm9 -> G13 (Warm 7th/9th cozy lo-fi chords)
@@ -264,7 +346,7 @@ class AmbientSynth {
     let chordIdx = 0;
 
     const playChord = () => {
-      if (this.currentType !== 'cafe' || !this.ctx) return;
+      if (track.volume <= 0 || !this.ctx || !track.gainNode) return;
       const now = ctx.currentTime;
       const notes = chords[chordIdx];
 
@@ -324,7 +406,7 @@ class AmbientSynth {
       chordIdx = (chordIdx + 1) % chords.length;
       
       // Repeat chord every 6 seconds
-      this.intervalId = setTimeout(playChord, 6000);
+      track.intervalId = setTimeout(playChord, 6000);
     };
 
     playChord();
