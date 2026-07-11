@@ -36,7 +36,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 
 export const Login: React.FC = () => {
-  const { user, profile, loginWithEmail, signupWithEmail, loginWithGoogle, loginWithGoogleRedirect, loading } = useAuth();
+  const { user, profile, loginWithEmail, signupWithEmail, loginWithGoogle, loading } = useAuth();
   const navigate = useNavigate();
 
   const [isLoginMode, setIsLoginMode] = useState(true);
@@ -109,7 +109,7 @@ export const Login: React.FC = () => {
       if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
         const inIframe = window.self !== window.top;
         if (inIframe) {
-          setAuthError("Google sign-in popup was closed or blocked. Because the app is running in a preview iframe, please click 'Open in New Tab' below to log in securely, or use the 'Google Sign-In (Redirect Callback)' option.");
+          setAuthError("Google sign-in popup was closed or blocked. Because the app is running in a preview iframe, please click 'Open in New Tab' below to log in securely.");
         } else {
           setAuthError("Sign-in popup was closed before completion. Please try again.");
         }
@@ -117,18 +117,6 @@ export const Login: React.FC = () => {
         setAuthError("Failed to authenticate with Google. Please try again.");
       }
     } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleGoogleSignInRedirect = async () => {
-    setAuthError(null);
-    setIsSubmitting(true);
-    try {
-      await loginWithGoogleRedirect();
-    } catch (error: any) {
-      console.error("Google Redirect error:", error);
-      setAuthError("Failed to initiate redirect sign-in. Please try opening in a new tab.");
       setIsSubmitting(false);
     }
   };
@@ -640,38 +628,21 @@ export const Login: React.FC = () => {
                 </span>
               </div>
 
-              {/* Google login options */}
-              <div className="space-y-3">
-                <button
-                  type="button"
-                  onClick={handleGoogleSignIn}
-                  disabled={isSubmitting}
-                  className="w-full py-3.5 rounded-xl border border-stone-200 dark:border-stone-800 bg-stone-50 hover:bg-stone-100 dark:bg-stone-900 dark:hover:bg-stone-850 transition text-stone-750 dark:text-stone-200 font-extrabold text-xs flex items-center justify-center space-x-2.5 shadow-sm"
-                >
-                  <svg className="w-4 h-4" viewBox="0 0 24 24">
-                    <path
-                      fill="#EA4335"
-                      d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-5.137 4.114-3.41 0-6.173-2.763-6.173-6.173s2.763-6.173 6.173-6.173c1.554 0 2.964.577 4.05 1.529l3.057-3.057C19.143 2.115 15.938 1 12.24 1 6.032 1 1 6.032 1 12.24s5.032 11.24 11.24 11.24c5.84 0 10.92-4.14 10.92-11.24 0-.648-.057-1.32-.173-1.954h-10.748z"
-                    />
-                  </svg>
-                  <span>Google Sign-In (Popup Method)</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleGoogleSignInRedirect}
-                  disabled={isSubmitting}
-                  className="w-full py-3.5 rounded-xl border border-stone-200/60 dark:border-stone-800/60 bg-stone-100/40 hover:bg-stone-100/80 dark:bg-stone-900/40 dark:hover:bg-stone-850/60 transition text-amber-700 dark:text-amber-400 font-extrabold text-xs flex items-center justify-center space-x-2.5 shadow-sm"
-                >
-                  <svg className="w-4 h-4" viewBox="0 0 24 24">
-                    <path
-                      fill="#EA4335"
-                      d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-5.137 4.114-3.41 0-6.173-2.763-6.173-6.173s2.763-6.173 6.173-6.173c1.554 0 2.964.577 4.05 1.529l3.057-3.057C19.143 2.115 15.938 1 12.24 1 6.032 1 1 6.032 1 12.24s5.032 11.24 11.24 11.24c5.84 0 10.92-4.14 10.92-11.24 0-.648-.057-1.32-.173-1.954h-10.748z"
-                    />
-                  </svg>
-                  <span>Google Sign-In (Redirect Method)</span>
-                </button>
-              </div>
+              {/* Google login */}
+              <button
+                type="button"
+                onClick={handleGoogleSignIn}
+                disabled={isSubmitting}
+                className="w-full py-3.5 rounded-xl border border-stone-200 dark:border-stone-800 bg-stone-50 hover:bg-stone-100 dark:bg-stone-900 dark:hover:bg-stone-850 transition text-stone-750 dark:text-stone-200 font-extrabold text-xs flex items-center justify-center space-x-2.5 shadow-sm"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24">
+                  <path
+                    fill="#EA4335"
+                    d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-5.137 4.114-3.41 0-6.173-2.763-6.173-6.173s2.763-6.173 6.173-6.173c1.554 0 2.964.577 4.05 1.529l3.057-3.057C19.143 2.115 15.938 1 12.24 1 6.032 1 12.24s5.032 11.24 11.24 11.24c5.84 0 10.92-4.14 10.92-11.24 0-.648-.057-1.32-.173-1.954h-10.748z"
+                  />
+                </svg>
+                <span>Google Sign-In</span>
+              </button>
 
               {/* Iframe Preview Warning */}
               {isInIframe && (
