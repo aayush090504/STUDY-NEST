@@ -675,205 +675,235 @@ export const Timer: React.FC = () => {
         )}
       </div>
 
+      {/* Focus Mode Toggle Card */}
+      <div className={`w-full mt-6 p-4 rounded-2xl ${theme.colors.card} border ${theme.colors.border} flex items-center justify-between shadow-sm z-10`}>
+        <div className="flex items-center space-x-3">
+          <div className={`p-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400`}>
+            <Brain className="w-4 h-4 animate-pulse" />
+          </div>
+          <div className="text-left">
+            <span className={`text-xs font-black ${theme.colors.text} block`}>
+              Zen Focus Mode
+            </span>
+            <span className="text-[10px] text-stone-400 dark:text-stone-500 font-semibold block">
+              Simplify interface and hide distractions during active sessions
+            </span>
+          </div>
+        </div>
+        
+        <button
+          onClick={() => setFocusModeEnabled(!focusModeEnabled)}
+          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+            focusModeEnabled ? 'bg-amber-500' : 'bg-stone-200 dark:bg-stone-800'
+          }`}
+          title="Toggle Focus Mode"
+        >
+          <span
+            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+              focusModeEnabled ? 'translate-x-5' : 'translate-x-0'
+            }`}
+          />
+        </button>
+      </div>
+
+      {/* Timer Typography Font Selector (only visible when active focus mode is off) */}
       {!isFocusActiveInTimer && (
-        <>
-          {/* Timer Typography Font Selector */}
-          <div className={`w-full mt-6 p-6 rounded-3xl ${theme.colors.card} shadow-lg border ${theme.colors.border}`}>
-            <div className="flex items-center space-x-1.5 mb-2">
-              <Type className={`w-5 h-5 ${theme.colors.accent}`} />
-              <h3 className={`text-sm font-black ${theme.colors.text}`}>Timer Typography</h3>
+        <div className={`w-full mt-6 p-6 rounded-3xl ${theme.colors.card} shadow-lg border ${theme.colors.border}`}>
+          <div className="flex items-center space-x-1.5 mb-2">
+            <Type className={`w-5 h-5 ${theme.colors.accent}`} />
+            <h3 className={`text-sm font-black ${theme.colors.text}`}>Timer Typography</h3>
+          </div>
+          <p className={`text-[11px] mb-4 font-semibold opacity-70 ${theme.colors.text}`}>
+            Choose your favorite customized font style face for your timer.
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+            {FONTS.map((f) => {
+              const isSelected = (profile?.timeFont || 'font-timer-mono') === f.id;
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => handleFontChange(f.id)}
+                  className={`p-3 rounded-xl border text-center transition-all cursor-pointer relative flex flex-col justify-between h-full ${
+                    isSelected
+                      ? `border-amber-500 bg-amber-500/10 dark:bg-amber-500/20 shadow-xs scale-102`
+                      : `border-stone-200/40 dark:border-stone-800/40 bg-stone-100/10 dark:bg-stone-900/10 hover:bg-stone-100/20 dark:hover:bg-stone-900/20 ${theme.colors.text} opacity-80 hover:opacity-100`
+                  }`}
+                >
+                  <div className={`text-[9px] font-black uppercase tracking-wider ${isSelected ? 'text-amber-600 dark:text-amber-400' : 'opacity-60'}`}>
+                    {f.name.replace(' (Rounded)', '')}
+                  </div>
+                  <div className={`text-lg font-black mt-1.5 ${f.className} ${isSelected ? 'text-amber-600 dark:text-amber-400' : ''}`}>
+                    25:00
+                  </div>
+                  {isSelected && (
+                    <div className="absolute top-1 right-1 p-0.5 bg-amber-500 text-white rounded-full">
+                      <Check className="w-2.5 h-2.5" />
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Cozy Ambience Player (Always accessible, even during active focus sessions) */}
+      <div className={`w-full mt-6 p-6 rounded-3xl ${theme.colors.card} shadow-lg border ${theme.colors.border}`}>
+        {/* Header Block */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 pb-4 border-b border-stone-200/50 dark:border-stone-800/50">
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={handleAmbientPlayToggle}
+              className={`p-2.5 rounded-2xl ${
+                isAmbientPlaying 
+                  ? `${theme.colors.primary} text-white` 
+                  : 'bg-black/5 dark:bg-white/5 text-stone-600 dark:text-stone-300'
+              } transition-all`}
+              title={isAmbientPlaying ? "Mute All" : "Play Ambience"}
+            >
+              {isAmbientPlaying ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+            </button>
+
+            <div className="text-left">
+              <div className={`text-sm font-bold ${theme.colors.text}`}>Cozy Ambience</div>
+              <div className="text-xs text-stone-400 dark:text-stone-500 font-semibold">
+                {isAmbientPlaying 
+                  ? (isMixMode ? "Custom Soundtrack Mix" : AMBIENT_SOUNDS.find(s => s.id === selectedSoundId)?.name)
+                  : 'Sound player muted'}
+              </div>
             </div>
-            <p className={`text-[11px] mb-4 font-semibold opacity-70 ${theme.colors.text}`}>
-              Choose your favorite customized font style face for your timer.
-            </p>
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-              {FONTS.map((f) => {
-                const isSelected = (profile?.timeFont || 'font-timer-mono') === f.id;
+          </div>
+
+          {/* Mode Switcher Tabs */}
+          <div className="flex bg-stone-100 dark:bg-stone-900/60 p-1 rounded-xl self-start sm:self-center">
+            <button
+              onClick={() => setIsMixMode(false)}
+              className={`px-3 py-1.5 rounded-lg text-[11px] font-extrabold transition-all ${
+                !isMixMode
+                  ? `${theme.colors.primary} text-white shadow-xs`
+                  : 'text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200'
+              }`}
+            >
+              Single Preset
+            </button>
+            <button
+              onClick={() => setIsMixMode(true)}
+              className={`px-3 py-1.5 rounded-lg text-[11px] font-extrabold transition-all flex items-center space-x-1 ${
+                isMixMode
+                  ? `${theme.colors.primary} text-white shadow-xs`
+                  : 'text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200'
+              }`}
+            >
+              <Sliders className="w-3 h-3" />
+              <span>Ambient Mixer</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Sub-panels based on mode */}
+        <div className="mt-5 space-y-4">
+          {!isMixMode ? (
+            /* Single Mode Presets */
+            <div className="flex flex-wrap gap-2 justify-start items-center">
+              {AMBIENT_SOUNDS.map((sound) => {
+                const isSelected = selectedSoundId === sound.id;
                 return (
                   <button
-                    key={f.id}
-                    type="button"
-                    onClick={() => handleFontChange(f.id)}
-                    className={`p-3 rounded-xl border text-center transition-all cursor-pointer relative flex flex-col justify-between h-full ${
+                    key={sound.id}
+                    onClick={() => {
+                      handleSoundChange(sound.id);
+                      if (!isAmbientPlaying) setIsAmbientPlaying(true);
+                    }}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
                       isSelected
-                        ? `border-amber-500 bg-amber-500/10 dark:bg-amber-500/20 shadow-xs scale-102`
-                        : `border-stone-200/40 dark:border-stone-800/40 bg-stone-100/10 dark:bg-stone-900/10 hover:bg-stone-100/20 dark:hover:bg-stone-900/20 ${theme.colors.text} opacity-80 hover:opacity-100`
+                        ? `${theme.colors.primary} text-white`
+                        : 'bg-black/5 dark:bg-white/5 hover:bg-black/10 text-stone-600 dark:text-stone-300'
                     }`}
+                    title={sound.name}
                   >
-                    <div className={`text-[9px] font-black uppercase tracking-wider ${isSelected ? 'text-amber-600 dark:text-amber-400' : 'opacity-60'}`}>
-                      {f.name.replace(' (Rounded)', '')}
-                    </div>
-                    <div className={`text-lg font-black mt-1.5 ${f.className} ${isSelected ? 'text-amber-600 dark:text-amber-400' : ''}`}>
-                      25:00
-                    </div>
-                    {isSelected && (
-                      <div className="absolute top-1 right-1 p-0.5 bg-amber-500 text-white rounded-full">
-                        <Check className="w-2.5 h-2.5" />
-                      </div>
-                    )}
+                    {sound.id === 'rain' && '🌧️ '}
+                    {sound.id === 'cafe' && '☕ '}
+                    {sound.id === 'campfire' && '🔥 '}
+                    {sound.id === 'nebula' && '🌌 '}
+                    {sound.id === 'none' && '🔇 '}
+                    {sound.name}
                   </button>
                 );
               })}
             </div>
-          </div>
-
-          <div className={`w-full mt-6 p-6 rounded-3xl ${theme.colors.card} shadow-lg border ${theme.colors.border}`}>
-          {/* Header Block */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 pb-4 border-b border-stone-200/50 dark:border-stone-800/50">
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={handleAmbientPlayToggle}
-                className={`p-2.5 rounded-2xl ${
-                  isAmbientPlaying 
-                    ? `${theme.colors.primary} text-white` 
-                    : 'bg-black/5 dark:bg-white/5 text-stone-600 dark:text-stone-300'
-                } transition-all`}
-                title={isAmbientPlaying ? "Mute All" : "Play Ambience"}
-              >
-                {isAmbientPlaying ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
-              </button>
-
-              <div className="text-left">
-                <div className={`text-sm font-bold ${theme.colors.text}`}>Cozy Ambience</div>
-                <div className="text-xs text-stone-400 dark:text-stone-500 font-semibold">
-                  {isAmbientPlaying 
-                    ? (isMixMode ? "Custom Soundtrack Mix" : AMBIENT_SOUNDS.find(s => s.id === selectedSoundId)?.name)
-                    : 'Sound player muted'}
-                </div>
+          ) : (
+            /* Mixer Mode Sliders */
+            <div className="space-y-4 pt-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] uppercase tracking-wider font-extrabold text-stone-400 dark:text-stone-500">
+                  Mix levels (Web Audio Synthesizer)
+                </span>
+                <button 
+                  onClick={() => setTrackVolumes({ rain: 0, cafe: 0, campfire: 0, nebula: 0 })}
+                  className="text-[10px] text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-350 font-black"
+                >
+                  Mute All Tracks
+                </button>
               </div>
-            </div>
 
-            {/* Mode Switcher Tabs */}
-            <div className="flex bg-stone-100 dark:bg-stone-900/60 p-1 rounded-xl self-start sm:self-center">
-              <button
-                onClick={() => setIsMixMode(false)}
-                className={`px-3 py-1.5 rounded-lg text-[11px] font-extrabold transition-all ${
-                  !isMixMode
-                    ? `${theme.colors.primary} text-white shadow-xs`
-                    : 'text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200'
-                }`}
-              >
-                Single Preset
-              </button>
-              <button
-                onClick={() => setIsMixMode(true)}
-                className={`px-3 py-1.5 rounded-lg text-[11px] font-extrabold transition-all flex items-center space-x-1 ${
-                  isMixMode
-                    ? `${theme.colors.primary} text-white shadow-xs`
-                    : 'text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200'
-                }`}
-              >
-                <Sliders className="w-3 h-3" />
-                <span>Ambient Mixer</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Sub-panels based on mode */}
-          <div className="mt-5 space-y-4">
-            {!isMixMode ? (
-              /* Single Mode Presets */
-              <div className="flex flex-wrap gap-2 justify-start items-center">
-                {AMBIENT_SOUNDS.map((sound) => {
-                  const isSelected = selectedSoundId === sound.id;
-                  return (
-                    <button
-                      key={sound.id}
-                      onClick={() => {
-                        handleSoundChange(sound.id);
-                        if (!isAmbientPlaying) setIsAmbientPlaying(true);
-                      }}
-                      className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
-                        isSelected
-                          ? `${theme.colors.primary} text-white`
-                          : 'bg-black/5 dark:bg-white/5 hover:bg-black/10 text-stone-600 dark:text-stone-300'
-                      }`}
-                      title={sound.name}
-                    >
-                      {sound.id === 'rain' && '🌧️ '}
-                      {sound.id === 'cafe' && '☕ '}
-                      {sound.id === 'campfire' && '🔥 '}
-                      {sound.id === 'nebula' && '🌌 '}
-                      {sound.id === 'none' && '🔇 '}
-                      {sound.name}
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              /* Mixer Mode Sliders */
-              <div className="space-y-4 pt-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] uppercase tracking-wider font-extrabold text-stone-400 dark:text-stone-500">
-                    Mix levels (Web Audio Synthesizer)
-                  </span>
-                  <button 
-                    onClick={() => setTrackVolumes({ rain: 0, cafe: 0, campfire: 0, nebula: 0 })}
-                    className="text-[10px] text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-350 font-black"
-                  >
-                    Mute All Tracks
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {[
-                    { id: 'rain', label: '🌧️ Gentle Rain', value: trackVolumes.rain },
-                    { id: 'cafe', label: '☕ Cozy Cafe Piano', value: trackVolumes.cafe },
-                    { id: 'campfire', label: '🔥 Campfire crackles', value: trackVolumes.campfire },
-                    { id: 'nebula', label: '🌌 Space Nebula Synth', value: trackVolumes.nebula },
-                  ].map((track) => (
-                    <div key={track.id} className="p-3 bg-stone-100/30 dark:bg-stone-900/20 rounded-2xl border border-stone-200/20 dark:border-stone-800/20 space-y-2">
-                      <div className="flex items-center justify-between text-xs font-bold text-stone-600 dark:text-stone-350">
-                        <span>{track.label}</span>
-                        <span>{Math.round(track.value * 100)}%</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.05"
-                        value={track.value}
-                        onChange={(e) => {
-                          const val = parseFloat(e.target.value);
-                          setTrackVolumes(prev => ({ ...prev, [track.id]: val }));
-                          if (!isAmbientPlaying) {
-                            setIsAmbientPlaying(true);
-                          }
-                        }}
-                        className="w-full h-1 bg-stone-200 dark:bg-stone-800 rounded-lg appearance-none cursor-pointer accent-amber-500"
-                      />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {[
+                  { id: 'rain', label: '🌧️ Gentle Rain', value: trackVolumes.rain },
+                  { id: 'cafe', label: '☕ Cozy Cafe Piano', value: trackVolumes.cafe },
+                  { id: 'campfire', label: '🔥 Campfire crackles', value: trackVolumes.campfire },
+                  { id: 'nebula', label: '🌌 Space Nebula Synth', value: trackVolumes.nebula },
+                ].map((track) => (
+                  <div key={track.id} className="p-3 bg-stone-100/30 dark:bg-stone-900/20 rounded-2xl border border-stone-200/20 dark:border-stone-800/20 space-y-2">
+                    <div className="flex items-center justify-between text-xs font-bold text-stone-600 dark:text-stone-350">
+                      <span>{track.label}</span>
+                      <span>{Math.round(track.value * 100)}%</span>
                     </div>
-                  ))}
-                </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={track.value}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        setTrackVolumes(prev => ({ ...prev, [track.id]: val }));
+                        if (!isAmbientPlaying) {
+                          setIsAmbientPlaying(true);
+                        }
+                      }}
+                      className="w-full h-1 bg-stone-200 dark:bg-stone-800 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                    />
+                  </div>
+                ))}
               </div>
-            )}
+            </div>
+          )}
 
-            {/* Master Volume Control */}
-            {isAmbientPlaying && (
-              <div className="pt-3 border-t border-stone-200/40 dark:border-stone-800/40 space-y-1.5">
-                <div className="flex justify-between items-center text-xs font-bold text-stone-400">
-                  <span>Master Volume</span>
-                  <span>{Math.round(ambientVolume * 100)}%</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <VolumeX className="w-4 h-4 text-stone-400 shrink-0" />
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.05"
-                    value={ambientVolume}
-                    onChange={(e) => setAmbientVolume(parseFloat(e.target.value))}
-                    className="w-full h-1 bg-stone-200 dark:bg-stone-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
-                  />
-                  <Volume2 className="w-4 h-4 text-stone-400 shrink-0" />
-                </div>
+          {/* Master Volume Control */}
+          {isAmbientPlaying && (
+            <div className="pt-3 border-t border-stone-200/40 dark:border-stone-800/40 space-y-1.5">
+              <div className="flex justify-between items-center text-xs font-bold text-stone-400">
+                <span>Master Volume</span>
+                <span>{Math.round(ambientVolume * 100)}%</span>
               </div>
-            )}
-          </div>
+              <div className="flex items-center space-x-3">
+                <VolumeX className="w-4 h-4 text-stone-400 shrink-0" />
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={ambientVolume}
+                  onChange={(e) => setAmbientVolume(parseFloat(e.target.value))}
+                  className="w-full h-1 bg-stone-200 dark:bg-stone-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                />
+                <Volume2 className="w-4 h-4 text-stone-400 shrink-0" />
+              </div>
+            </div>
+          )}
         </div>
-        </>
-      )}
+      </div>
 
       {/* BEFORE-TIMER FOCUS PROMPT INTENT MODAL */}
       <AnimatePresence>
